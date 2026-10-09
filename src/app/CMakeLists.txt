@@ -29,6 +29,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     ServerRail.cpp ServerRail.h
     SettingsDialog.cpp SettingsDialog.h
     Theme.cpp Theme.h
+    UpdateDialog.cpp UpdateDialog.h
     UserPanel.cpp UserPanel.h
     VoiceChannelView.cpp VoiceChannelView.h
     VoiceController.cpp VoiceController.h

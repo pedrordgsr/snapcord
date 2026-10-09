@@ -177,7 +177,10 @@ private:
         painter->setFont(font);
         painter->setPen(colors.textMuted);
         const QRect rect = option.rect.adjusted(16, 0, -8, -6);
-        const QString text = QStringLiteral("%1 — %2").arg(name.toUpper()).arg(item.groupCount);
+        // Role groups show only the name; Online/Offline keep their counts.
+        const bool roleGroup = item.groupId != u"online" && item.groupId != u"offline";
+        const QString text = roleGroup ? name.toUpper()
+                                       : QStringLiteral("%1 — %2").arg(name.toUpper()).arg(item.groupCount);
         painter->drawText(rect, Qt::AlignLeft | Qt::AlignBottom, painter->fontMetrics().elidedText(text, Qt::ElideRight, rect.width()));
     }
 

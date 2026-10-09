@@ -156,6 +156,8 @@ private:
     QWidget* buildNotificationsPage();
     QWidget* buildActivityPage();
     QWidget* buildLanguagePage();
+    QWidget* buildAboutPage();
+    void refreshAboutPage();
     void apply();
     void applyAppearance();
     void applyDialogChrome();
@@ -226,6 +228,13 @@ private:
     QComboBox* m_presetCombo = nullptr;
     QVector<ColorSwatch*> m_accentChips;
     QMap<QString, ColorSwatch*> m_tokenSwatches;
+
+    QWidget* m_aboutPage = nullptr;
+    QLabel* m_aboutLinks = nullptr;
+    QLabel* m_updateStatus = nullptr;
+    QPushButton* m_checkUpdates = nullptr;
+    QPushButton* m_viewUpdate = nullptr;
+    QLabel* m_contributors = nullptr;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;

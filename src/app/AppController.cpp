@@ -3,10 +3,12 @@
 #include "LoginWindow.h"
 #include "MainWindow.h"
 #include "RichPresence.h"
+#include "UpdateDialog.h"
 #include "VoiceController.h"
 #include "core/ClientProperties.h"
 #include "core/RestClient.h"
 #include "core/Session.h"
+#include "core/UpdateChecker.h"
 #include "platform/CredentialStore.h"
 
 #include <QGuiApplication>
@@ -28,6 +30,10 @@ void AppController::start()
 {
     // The window comes up with the saved theme immediately. Discord's build number is fetched in the
     // background; only the gateway waits for it, and only when nothing is cached yet.
+    // New releases on GitHub are announced with a notice; the first check runs a little after start-up.
+    connect(&UpdateChecker::instance(), &UpdateChecker::updateAvailableNotice, this, &UpdateDialog::showNotice);
+    UpdateChecker::instance().startAutomaticChecks();
+
     const QString token = CredentialStore::loadToken();
     if (token.isEmpty())
         showLogin();

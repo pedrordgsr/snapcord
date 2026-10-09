@@ -5,7 +5,9 @@
 #include "Notifier.h"
 #include "RichPresence.h"
 #include "Theme.h"
+#include "UpdateDialog.h"
 #include "VoiceController.h"
+#include "core/UpdateChecker.h"
 #include "platform/KeyState.h"
 #include "voice/AudioEngine.h"
 
@@ -18,6 +20,8 @@
 #include <QEvent>
 #include <QFileDialog>
 #include <QFrame>
+#include <QIcon>
+#include <QLocale>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -391,6 +395,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     if constexpr (RichPresence::Enabled)
         navigation->addItem(tr("Activity Privacy"));
     navigation->addItem(tr("Language"));
+    navigation->addItem(tr("About"));
 
     auto* logout = new QPushButton(tr("Log Out"));
     logout->setObjectName(QStringLiteral("dangerButton"));
@@ -416,9 +421,13 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     if constexpr (RichPresence::Enabled)
         m_settingsPages->addWidget(buildActivityPage());
     m_settingsPages->addWidget(buildLanguagePage());
+    m_settingsPages->addWidget(buildAboutPage());
     connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, [this](int row) {
         Motion::crossFade(m_settingsPages);
         m_settingsPages->setCurrentIndex(row);
+        // Contributors come from GitHub only when someone actually opens About (once per run).
+        if (m_settingsPages->currentWidget() == m_aboutPage)
+            UpdateChecker::instance().fetchContributors();
     });
     navigation->setCurrentRow(0);
 
@@ -1456,6 +1465,170 @@ QWidget* SettingsDialog::buildLanguagePage()
     }
     layout->addStretch();
     return content;
+}
+
+QWidget* SettingsDialog::buildAboutPage()
+{
+    auto* content = new QWidget;
+    content->setObjectName(QStringLiteral("settingsContent"));
+    content->setAttribute(Qt::WA_StyledBackground);
+    auto* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(40, 32, 40, 32);
+    layout->setSpacing(12);
+
+    // Header: icon, name and version.
+    auto* icon = new QLabel;
+    icon->setPixmap(QIcon(QStringLiteral(":/icons/snapcord.svg")).pixmap(QSize(64, 64), devicePixelRatioF()));
+    icon->setFixedSize(64, 64);
+    auto* name = new QLabel(QStringLiteral("Snapcord"));
+    name->setObjectName(QStringLiteral("settingsTitle"));
+    auto* version = new QLabel(tr("Version %1").arg(UpdateChecker::currentVersion()));
+    version->setObjectName(QStringLiteral("settingsHint"));
+    version->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto* titles = new QVBoxLayout;
+    titles->setSpacing(2);
+    titles->addStretch();
+    titles->addWidget(name);
+    titles->addWidget(version);
+    titles->addStretch();
+    auto* header = new QHBoxLayout;
+    header->setSpacing(16);
+    header->addWidget(icon);
+    header->addLayout(titles, 1);
+    layout->addLayout(header);
+    layout->addSpacing(4);
+
+    auto* description = new QLabel(tr("A lightweight, native and open-source Discord client, made first of all for "
+                                      "voice calls."));
+    description->setWordWrap(true);
+    layout->addWidget(description);
+
+    m_aboutLinks = new QLabel;
+    m_aboutLinks->setOpenExternalLinks(true);
+    m_aboutLinks->setTextFormat(Qt::RichText);
+    layout->addWidget(m_aboutLinks);
+
+    auto* disclaimer = new QLabel(tr("Snapcord is not made by or affiliated with Discord. Third-party clients go "
+                                     "against Discord's Terms of Service and may get your account banned; use it "
+                                     "at your own risk."));
+    disclaimer->setObjectName(QStringLiteral("settingsHint"));
+    disclaimer->setWordWrap(true);
+    layout->addWidget(disclaimer);
+
+    // Updates.
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Updates")));
+    m_updateStatus = new QLabel;
+    m_updateStatus->setWordWrap(true);
+    m_checkUpdates = new QPushButton(tr("Check for Updates"));
+    m_checkUpdates->setObjectName(QStringLiteral("secondaryButton"));
+    m_checkUpdates->setCursor(Qt::PointingHandCursor);
+    m_viewUpdate = new QPushButton(tr("View Update"));
+    m_viewUpdate->setObjectName(QStringLiteral("brandButton"));
+    m_viewUpdate->setCursor(Qt::PointingHandCursor);
+    auto* updateRow = new QHBoxLayout;
+    updateRow->setSpacing(8);
+    updateRow->addWidget(m_updateStatus, 1);
+    updateRow->addWidget(m_viewUpdate);
+    updateRow->addWidget(m_checkUpdates);
+    layout->addLayout(updateRow);
+
+    UpdateChecker& checker = UpdateChecker::instance();
+    connect(m_checkUpdates, &QPushButton::clicked, this, [this, &checker] {
+        checker.checkNow();
+        refreshAboutPage();
+    });
+    connect(m_viewUpdate, &QPushButton::clicked, this, [this, &checker] {
+        auto* dialog = new UpdateDialog(checker.latest(), this);
+        dialog->show();
+    });
+    connect(&checker, &UpdateChecker::checkFinished, this, [this](const QString& error) {
+        refreshAboutPage();
+        if (!error.isEmpty())
+            m_updateStatus->setText(error);
+    });
+
+    auto* automatic = new QCheckBox(tr("Check for updates automatically"));
+    automatic->setChecked(UpdateChecker::automaticChecks());
+    connect(automatic, &QCheckBox::toggled, this, &UpdateChecker::setAutomaticChecks);
+    layout->addWidget(option(automatic, tr("Once a day Snapcord asks GitHub for the latest release and tells you "
+                                           "when there is a new one. Nothing is downloaded without your click.")));
+    auto* prereleases = new QCheckBox(tr("Include pre-releases"));
+    prereleases->setChecked(UpdateChecker::includePrereleases());
+    connect(prereleases, &QCheckBox::toggled, this, &UpdateChecker::setIncludePrereleases);
+    layout->addWidget(option(prereleases, tr("Also tell me about test versions, which may be less stable.")));
+
+    // Contributors (from GitHub) and the libraries that make Snapcord possible.
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Contributors")));
+    m_contributors = new QLabel;
+    m_contributors->setWordWrap(true);
+    m_contributors->setOpenExternalLinks(true);
+    m_contributors->setTextFormat(Qt::RichText);
+    layout->addWidget(m_contributors);
+    connect(&checker, &UpdateChecker::contributorsLoaded, this, &SettingsDialog::refreshAboutPage);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Built with")));
+    auto* credits = new QLabel(QStringLiteral("Qt · libdave · mlspp · Opus · miniaudio · RNNoise · SpeexDSP · "
+                                              "libsodium · OpenSSL · zlib · QR Code generator"));
+    credits->setObjectName(QStringLiteral("settingsHint"));
+    credits->setWordWrap(true);
+    layout->addWidget(credits);
+    layout->addStretch();
+
+    connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::refreshAboutPage);
+    refreshAboutPage();
+
+    auto* scroll = new QScrollArea;
+    scroll->setWidget(content);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_aboutPage = scroll;
+    return scroll;
+}
+
+void SettingsDialog::refreshAboutPage()
+{
+    const UpdateChecker& checker = UpdateChecker::instance();
+    const QString linkColor = Theme::instance().palette().link.name();
+    auto link = [&](const QUrl& url, const QString& text) {
+        return QStringLiteral("<a style=\"color:%1; text-decoration:none\" href=\"%2\">%3</a>")
+            .arg(linkColor, QString::fromUtf8(url.toEncoded()), text.toHtmlEscaped());
+    };
+
+    const QString repo = UpdateChecker::repositoryUrl().toString();
+    m_aboutLinks->setText(QStringList{
+        link(UpdateChecker::repositoryUrl(), tr("Source code")),
+        link(QUrl(repo + QStringLiteral("/issues")), tr("Report a problem")),
+        link(QUrl(repo + QStringLiteral("/releases")), tr("Releases")),
+        link(QUrl(QStringLiteral("https://www.gnu.org/licenses/gpl-3.0.html")), tr("License: GNU GPL v3")),
+    }.join(QStringLiteral(" &nbsp;·&nbsp; ")));
+
+    m_checkUpdates->setEnabled(!checker.isChecking());
+    m_viewUpdate->setVisible(!checker.isChecking() && checker.updateAvailable());
+    if (checker.isChecking()) {
+        m_updateStatus->setText(tr("Checking for updates…"));
+    } else if (checker.updateAvailable()) {
+        m_updateStatus->setText(tr("Version %1 is available.").arg(checker.latest().version));
+    } else if (const QDateTime last = UpdateChecker::lastCheck(); last.isValid()) {
+        m_updateStatus->setText(tr("You are on the latest version. Last checked: %1.")
+                                    .arg(QLocale().toString(last.toLocalTime(), QLocale::ShortFormat)));
+    } else {
+        m_updateStatus->setText(tr("Not checked yet."));
+    }
+
+    const auto& people = checker.contributors();
+    if (people.isEmpty()) {
+        m_contributors->setText(tr("See everyone who helped on %1.")
+                                    .arg(link(QUrl(repo + QStringLiteral("/graphs/contributors")), QStringLiteral("GitHub"))));
+    } else {
+        QStringList names;
+        for (const UpdateChecker::Contributor& person : people)
+            names.append(link(person.profileUrl, person.login));
+        m_contributors->setText(names.join(QStringLiteral(" &nbsp;·&nbsp; ")));
+    }
 }
 
 void SettingsDialog::apply()

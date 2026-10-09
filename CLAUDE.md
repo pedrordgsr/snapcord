@@ -484,8 +484,16 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 
 ### Fase 4 (lançamento)
 
-- **Fora de escopo por decisão do dono:** atualização automática, testes de áudio por plataforma e
+- **Fora de escopo por decisão do dono:** instalar atualizações sozinho, testes de áudio por plataforma e
   push-to-talk global no macOS/Linux.
+- **Aviso de atualização (`core/UpdateChecker`, `app/UpdateDialog`):** só avisa, nunca baixa nem instala.
+  - Consulta `api.github.com/repos/pedrordgsr/snapcord/releases/latest` (ou `/releases`, com "incluir versões de
+    teste") no máximo 1 vez por dia, primeira checagem ~15 s após abrir. Última checagem em `updates/lastCheck`.
+  - Achou versão maior (comparação semver, testes em `tests/UpdateCheckerTest.cpp`): mostra a janela com as notas
+    da versão e os botões Baixar / Pular esta versão (`updates/skippedVersion`) / Depois. "Baixar" abre o pacote
+    do sistema (`.exe`, `.dmg`, `.AppImage` ou `.flatpak`, pelo nome do arquivo) ou a página da versão.
+  - Configurações > **About**: versão, links, aviso dos Termos, colaboradores (API de contributors do GitHub,
+    buscada só ao abrir a página), "Procurar atualizações" e as opções `updates/automatic` e `updates/prereleases`.
 - **Login guardado no sistema:** Windows Credential Manager, macOS Keychain e Linux Secret Service
   (libsecret), em `src/platform/CredentialStore*.cpp`.
 - **Ícones:** gerados a partir do SVG pela ferramenta `snapcord_render_icons`

@@ -16,6 +16,7 @@ add_library(snapcord_core STATIC
     RsaKey.cpp RsaKey.h
     Session.cpp Session.h
     SpotifyPresence.cpp SpotifyPresence.h
+    UpdateChecker.cpp UpdateChecker.h
     UploadLimits.h
     ZlibStream.cpp ZlibStream.h
 )

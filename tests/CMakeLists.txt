@@ -25,6 +25,7 @@ snapcord_add_test(snapcord_game_detector_tests GameDetectorTest.cpp snapcord_cor
 snapcord_add_test(snapcord_client_properties_tests ClientPropertiesTest.cpp snapcord_core)
 snapcord_add_test(snapcord_composer_tests ComposerTest.cpp snapcord_core)
 snapcord_add_test(snapcord_guild_folders_tests GuildFoldersTest.cpp snapcord_core)
+snapcord_add_test(snapcord_update_checker_tests UpdateCheckerTest.cpp snapcord_core)
 
 # Exercise the real composer and channel switching with an offline session.
 set(chat_draft_sources ChatDraftTest.cpp)

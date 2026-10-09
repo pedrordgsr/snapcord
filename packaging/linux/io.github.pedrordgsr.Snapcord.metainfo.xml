@@ -28,6 +28,11 @@
     <content_attribute id="social-audio">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.3.0" date="2026-10-09">
+      <description>
+        <p>Moderation actions, a friends home, per-channel drafts, Discord videos inside the app, channel editing, server folders, sound effect styles, an About page and update notices.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-10-07">
       <description>
         <p>Chat improvements: mentions, file uploads, an in-app image and video viewer, member list, profile cards and editing, Appearance themes, smooth animations and lighter background traffic.</p>
