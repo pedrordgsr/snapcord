@@ -38,6 +38,9 @@ Session::Session(QObject* parent)
     m_missingUsersTimer.setSingleShot(true);
     m_missingUsersTimer.setInterval(250);
     connect(&m_missingUsersTimer, &QTimer::timeout, this, &Session::requestMissingUsers);
+    m_missingRolesTimer.setSingleShot(true);
+    m_missingRolesTimer.setInterval(250);
+    connect(&m_missingRolesTimer, &QTimer::timeout, this, &Session::requestMissingRoles);
 }
 
 void Session::start(const QString& token)
@@ -1505,13 +1508,65 @@ void Session::storeUser(const QJsonObject& json)
 
 std::optional<QStringList> Session::memberRoleIds(const QString& guildId, const QString& userId) const
 {
-    const auto guild = m_memberRoles.constFind(guildId);
-    if (guild == m_memberRoles.cend())
+    if (const Guild* guild = this->guild(guildId); guild && userId == m_self.id && !guild->selfRoleIds.isEmpty())
+        return guild->selfRoleIds;
+    const auto cached = m_memberRoles.constFind(guildId);
+    if (cached != m_memberRoles.cend()) {
+        const auto member = cached->constFind(userId);
+        if (member != cached->cend())
+            return *member;
+    }
+    // Rows the member sidebar already loaded know the same roles the list paints with.
+    const auto lists = m_memberLists.constFind(guildId);
+    if (lists == m_memberLists.cend())
         return std::nullopt;
-    const auto member = guild->constFind(userId);
-    if (member == guild->cend())
-        return std::nullopt;
-    return *member;
+    for (const MemberList& list : lists->lists) {
+        for (const MemberListItem& item : list.items) {
+            if (item.userId == userId)
+                return item.roleIds;
+        }
+    }
+    return std::nullopt;
+}
+
+void Session::ensureAuthorRoles(const QString& guildId, const QString& channelId)
+{
+    if (guildId.isEmpty() || channelId.isEmpty())
+        return;
+    bool queued = false;
+    const auto remember = [this, &guildId, &queued](const QString& userId, const QStringList& roles) {
+        if (userId.isEmpty() || userId == m_self.id)
+            return;
+        if (!roles.isEmpty() && !m_memberRoles.value(guildId).contains(userId))
+            m_memberRoles[guildId].insert(userId, roles);
+        if (memberRoleIds(guildId, userId))
+            return;
+        const QString key = guildId + u'/' + userId;
+        if (m_rolesRequested.contains(key) || m_missingRoles.value(guildId).contains(userId))
+            return;
+        m_missingRoles[guildId].insert(userId);
+        queued = true;
+    };
+    for (const Message& message : m_messages->messages(channelId)) {
+        remember(message.author.id, message.memberRoleIds);
+        remember(message.referencedAuthor.id, message.referencedMemberRoleIds);
+    }
+    if (queued)
+        m_missingRolesTimer.start();
+}
+
+void Session::requestMissingRoles()
+{
+    for (auto it = m_missingRoles.begin(); it != m_missingRoles.end(); ++it) {
+        QStringList ids;
+        for (const QString& id : it.value()) {
+            m_rolesRequested.insert(it.key() + u'/' + id);
+            ids.append(id);
+        }
+        it.value().clear();
+        for (qsizetype i = 0; i < ids.size(); i += 100)
+            m_gateway->requestGuildMembers(it.key(), ids.mid(i, 100));
+    }
 }
 
 int Session::memberColor(const QString& guildId, const QString& userId, const QStringList& fallbackRoleIds) const

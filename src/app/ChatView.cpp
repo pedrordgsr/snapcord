@@ -335,6 +335,18 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     connect(m_session, &Session::usersChanged, this, [this] {
         if (m_mentionPopup->isVisible())
             updateMentionPopup();
+        m_list->viewport()->update();
+    });
+    auto resolveAuthors = [this](const QString& channelId) {
+        if (channelId == m_channelId)
+            m_session->ensureAuthorRoles(m_guildId, channelId);
+    };
+    connect(m_session->messages(), &MessageStore::reset, this, resolveAuthors);
+    connect(m_session->messages(), &MessageStore::olderLoaded, this, [resolveAuthors](const QString& channelId, int) {
+        resolveAuthors(channelId);
+    });
+    connect(m_session->messages(), &MessageStore::inserted, this, [resolveAuthors](const QString& channelId, int) {
+        resolveAuthors(channelId);
     });
     connect(m_session, &Session::memberListChanged, m_list->viewport(), qOverload<>(&QWidget::update));
     connect(m_session, &Session::guildChanged, m_list->viewport(), qOverload<>(&QWidget::update));
@@ -452,7 +464,9 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
     m_typing.clear();
     m_statusLabel->clear();
     m_delegate->invalidateAll();
+    m_delegate->setGuildId(guildId);
     m_session->messages()->open(channelId);
+    m_session->ensureAuthorRoles(guildId, channelId);
     m_model->setChannel(channelId);
     refreshHeader();
     restoreDraft();

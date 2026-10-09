@@ -704,7 +704,8 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         int x = l.replyRect.left();
         painter->setFont(messageFont(base, 13, QFont::DemiBold));
         if (!l.replyName.isEmpty()) {
-            const QColor replyColor = memberNameColor(m_session, message.guildId, message.referencedAuthor.id,
+            const QString replyGuild = message.guildId.isEmpty() ? m_guildId : message.guildId;
+            const QColor replyColor = memberNameColor(m_session, replyGuild, message.referencedAuthor.id,
                                                       message.referencedMemberRoleIds);
             painter->setPen(replyColor.isValid() ? replyColor : colors.textBright);
             const QString name = u'@' + l.replyName;
@@ -720,7 +721,8 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     if (l.groupStart) {
         painter->drawPixmap(l.avatarRect, avatar(message.author, AvatarSize));
         painter->setFont(messageFont(base, 16, QFont::DemiBold));
-        const QColor authorColor = memberNameColor(m_session, message.guildId, message.author.id, message.memberRoleIds);
+        const QString authorGuild = message.guildId.isEmpty() ? m_guildId : message.guildId;
+        const QColor authorColor = memberNameColor(m_session, authorGuild, message.author.id, message.memberRoleIds);
         painter->setPen(authorColor.isValid() ? authorColor : colors.textBright);
         painter->drawText(l.nameRect, Qt::AlignVCenter, l.name);
         painter->setFont(messageFont(base, 12));

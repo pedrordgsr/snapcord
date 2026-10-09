@@ -97,6 +97,7 @@ public:
     QString selectedText() const;
     // Messages span the whole viewport; its width decides wrapping and therefore row heights.
     void setViewWidth(int width) { m_viewWidth = width; }
+    void setGuildId(const QString& guildId) { m_guildId = guildId; }
 
 private:
     struct Layout;
@@ -114,6 +115,7 @@ private:
     mutable QHash<QString, QPixmap> m_avatars; // by user ID + size
     QSet<QString> m_revealedSpoilers;
     int m_viewWidth = 600;
+    QString m_guildId;
     TextPoint m_selectionAnchor;
     TextPoint m_selectionFocus;
     mutable QSet<QString> m_requestedInvites; // looked up once per code, even when it fails
