@@ -171,21 +171,16 @@ jobs:
 
   release:
     name: release
-    # Draft release with Windows + Linux (AppImage/.deb) packages when available.
+    # Draft release with every package: Windows, macOS, Linux (AppImage/.deb) and the Flatpak bundle.
     if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
     needs: [build, flatpak]
     runs-on: ubuntu-latest
     steps:
+      # All artifacts of this run (snapcord-windows/-linux/-macos and the Flatpak bundle) in one folder.
       - uses: actions/download-artifact@v4
         with:
-          name: snapcord-windows
           path: artifacts
-        continue-on-error: true
-      - uses: actions/download-artifact@v4
-        with:
-          name: snapcord-linux
-          path: artifacts
-        continue-on-error: true
+          merge-multiple: true
       - run: ls -la artifacts
       # A draft: the release is published by hand after a final check.
       - uses: softprops/action-gh-release@v2
@@ -196,5 +191,7 @@ jobs:
           files: |
             artifacts/*.zip
             artifacts/*.exe
+            artifacts/*.dmg
             artifacts/*.AppImage
             artifacts/*.deb
+            artifacts/*.flatpak
